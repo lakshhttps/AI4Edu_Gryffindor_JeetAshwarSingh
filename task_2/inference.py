@@ -15,7 +15,7 @@ BATCH_SIZE = 4
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class TestDataset(Dataset):
-    def __init__(self, video_dir, transform=None):
+    def _init_(self, video_dir, transform=None):
         self.video_dir = video_dir
         self.transform = transform
         self.videos = sorted([
@@ -23,10 +23,10 @@ class TestDataset(Dataset):
             if f.endswith(('.mp4', '.avi', '.wmv', '.webm'))
         ])
 
-    def __len__(self):
+    def _len_(self):
         return len(self.videos)
 
-    def __getitem__(self, idx):
+    def _getitem_(self, idx):
         vid_name = self.videos[idx]
         vid_path = os.path.join(self.video_dir, vid_name)
         frames = self._load_video(vid_path)
@@ -34,15 +34,16 @@ class TestDataset(Dataset):
         if self.transform:
             frames = torch.stack([self.transform(f) for f in frames])
         else:
-            frames = torch.tensor(frames)
+            to_tensor = transforms.ToTensor()
+            frames = torch.stack([to_tensor(f) for f in frames])
 
         return frames, vid_name
 
     def _load_video(self, path):
         cap = cv2.VideoCapture(path)
         frames = []
-
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
         if total_frames == 0:
             return [np.zeros((IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8)] * SEQ_LEN
 
@@ -56,20 +57,19 @@ class TestDataset(Dataset):
                 frame = cv2.resize(frame, (IMG_SIZE, IMG_SIZE))
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frames.append(frame)
-                if len(frames) == SEQ_LEN:
-                    break
-
+            if len(frames) == SEQ_LEN:
+                break
         cap.release()
 
         while len(frames) < SEQ_LEN:
-            frames.append(frames[-1])
-
+            frames.append(frames[-1] if frames else np.zeros((IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8))
+        
         return frames[:SEQ_LEN]
 
 class ResNetLSTM(nn.Module):
-    def __init__(self):
-        super().__init__()
-        resnet = models.resnet18(weights=None)
+    def _init_(self):
+        super(ResNetLSTM, self)._init_()
+        resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         self.features = nn.Sequential(*list(resnet.children())[:-1])
         self.lstm = nn.LSTM(input_size=512, hidden_size=128, batch_first=True)
         self.classifier = nn.Sequential(
@@ -96,7 +96,8 @@ transform = transforms.Compose([
 ])
 
 model = ResNetLSTM().to(DEVICE)
-model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+if os.path.exists(MODEL_PATH):
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.eval()
 
 dataset = TestDataset(TEST_VIDEO_DIR, transform=transform)
@@ -108,15 +109,11 @@ with torch.no_grad():
     for frames, names in loader:
         frames = frames.to(DEVICE)
         outputs = model(frames)
-        probs = torch.sigmoid(outputs).squeeze(1)
+        preds = (torch.sigmoid(outputs) > 0.5).int().cpu().numpy()
+        
+        for name, pred in zip(names, preds):
+            results.append({"video": name, "label": pred[0]})
 
-        for name, p in zip(names, probs):
-            results.append({
-                "video": name,
-                "probability": float(p),
-                "prediction": int(p > 0.5)
-            })
-
-df = pd.DataFrame(results)
-df.to_csv("test_predictions.csv", index=False)
-print("Inference completed. Saved to test_predictions.csv")
+results_df = pd.DataFrame(results)
+results_df.to_csv("results.csv", index=False)
+print("Inference completed. Results saved to results.csv")
