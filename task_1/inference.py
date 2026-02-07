@@ -78,10 +78,11 @@ class ResNetLSTM(nn.Module):
         self.features = nn.Sequential(*list(resnet.children())[:-1])
         self.lstm = nn.LSTM(input_size=512, hidden_size=128, batch_first=True)
         self.classifier = nn.Sequential(
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
-        )
+    nn.Linear(128, 64),
+    nn.ReLU(),
+    nn.Dropout(0.5),   # MUST match training
+    nn.Linear(64, 1)
+)
 
     def forward(self, x):
         batch_size, seq_len, c, h, w = x.size()
