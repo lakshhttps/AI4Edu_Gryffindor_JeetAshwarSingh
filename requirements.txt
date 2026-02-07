@@ -1,0 +1,22 @@
+numpy
+pandas
+opencv-python
+torch
+torchvision
+scikit-learn
+matplotlib
+seaborn
+scipy
+openpyxl
+tqdm
+rppg-toolbox
+jupyter
+jwt
+bcrypt
+socket.io
+mongodb
+react
+python
+tailwind css
+node.js
+express
