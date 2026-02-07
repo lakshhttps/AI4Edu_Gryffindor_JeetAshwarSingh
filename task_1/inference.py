@@ -11,7 +11,7 @@ from torchvision import models, transforms
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using Device: {device}")
 
-TEST_VIDEO_FOLDER = "../data/Test"
+TEST_VIDEO_FOLDER = "../dataset/Test"
 MODEL_PATH = "best_binary_model.pth"
 IMG_SIZE = 224
 SEQ_LEN = 16

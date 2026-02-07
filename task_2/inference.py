@@ -7,7 +7,7 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from torchvision import models, transforms
 
-TEST_VIDEO_DIR = "dataset/Test"
+TEST_VIDEO_DIR = "../dataset/Test"
 MODEL_PATH = "multiclass_model.pth"
 IMG_SIZE = 224
 SEQ_LEN = 16
